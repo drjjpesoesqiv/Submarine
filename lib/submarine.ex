@@ -1,3 +1,7 @@
+defmodule Subscriber do
+  defstruct id: "none"
+end
+
 defmodule Submarine do
   use Agent
 
@@ -25,27 +29,42 @@ defmodule Submarine do
   """
   def run(subs) do
     receive do
-      {:publish, msg} ->
-        Enum.each(subs, &(send(&1, msg)))
+      {:publish, pid, msg} ->
+        pub = List.keyfind(subs, pid, 0) |> elem(1)
+        Enum.each(subs, &(send(elem(&1, 0), {pub.id, msg})))
         run(subs)
 
+      {:subscribe, pid, id} ->
+        run([{pid, %Subscriber{id: id}} | subs])
       {:subscribe, pid} ->
-        run([pid | subs])
+        run([{pid, %Subscriber{}} | subs])
 
       {:unsubscribe, pid} ->
-        List.delete(subs, pid) |> run
+        List.keydelete(subs, pid, 0) |> run
+
+      {:identify, pid, id} ->
+        sub = List.keyfind(subs, pid, 0) |> elem(1)
+        List.keyreplace(subs, pid, 0, {pid, %{sub | id: id}}) |> run
     end
   end
 
   @doc """
   publish to server
   """
-  def publish(msg) do
-    send(get_server(), {:publish, msg})
+  def publish(pid, msg) do
+    send(get_server(), {:publish, pid, msg})
   end
 
   @doc """
-  subscribe to server
+  subscribe to server with identifier
+  """
+  def subscribe(pid, id, handler) do
+    send(get_server(), {:subscribe, pid, id})
+    listen(handler)
+  end
+
+  @doc """
+  subscribe to server without identifier
   """
   def subscribe(pid, handler) do
     send(get_server(), {:subscribe, pid})
@@ -57,6 +76,10 @@ defmodule Submarine do
   """
   def unsubscribe(pid) do
     send(get_server(), {:unsubscribe, pid})
+  end
+
+  def identify(pid, id) do
+    send(get_server(), {:identify, pid, id})
   end
 
   @doc """
