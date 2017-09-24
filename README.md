@@ -10,7 +10,7 @@ by adding `submarine` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:submarine, "~> 0.0.1"}
+    {:submarine, "~> 0.0.2"}
   ]
 end
 ```
